@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Config File - Google Sheet DB</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md shadow-indigo-100">
+                    <i class="fa-solid fa-cloud-arrow-down text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg sm:text-xl text-slate-900 leading-tight">Config File</h1>
+                    <div class="flex items-center space-x-1.5">
+                        <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        <span id="dbStatusText" class="text-xs text-slate-500 font-medium">Mode Simulasi (Lokal)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <!-- Tombol Konfigurasi Google Sheet -->
+                <button onclick="openConfigModal()" class="px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 rounded-xl transition flex items-center space-x-1.5" title="Pengaturan Google Sheet">
+                    <i class="fa-solid fa-database"></i>
+                    <span class="hidden sm:inline">Database Sheet</span>
+                </button>
+
+                <!-- Tombol Toggle Mode Admin -->
+                <button id="adminToggleBtn" onclick="handleAdminClick()" class="px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-lock text-slate-500" id="adminIcon"></i>
+                    <span id="adminBtnText">Mode Admin</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Banner Mode Admin (Muncul saat Admin Aktif) -->
+    <div id="adminBanner" class="hidden bg-indigo-600 text-white px-4 py-2.5 shadow-inner">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs sm:text-sm gap-2">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-user-shield text-indigo-200"></i>
+                <span>Anda sedang berada di <strong>Mode Admin</strong>. Anda dapat menambah, mengedit, dan menghapus daftar file.</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="openFormModal()" class="bg-white text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg font-semibold transition shadow-sm flex items-center space-x-1">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Tambah File Baru</span>
+                </button>
+                <button onclick="logoutAdmin()" class="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-lg font-medium transition">
+                    Keluar Admin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Konten Utama -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        
+        <!-- Filter & Pencarian -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <!-- Pencarian -->
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                <input type="text" id="searchInput" oninput="renderFiles()" placeholder="Cari nama file atau deskripsi..." 
+                    class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+            </div>
+
+            <!-- Filter Kategori & Tombol Refresh -->
+            <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+                <select id="categoryFilter" onchange="renderFiles()" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-grow md:flex-grow-0">
+                    <option value="Semua">Semua Kategori</option>
+                    <option value="Konfigurasi">Konfigurasi</option>
+                    <option value="Aplikasi">Aplikasi / Software</option>
+                    <option value="Media">Media / Video / Audio</option>
+                    <option value="Firmware">Firmware</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+
+                <button onclick="fetchFilesFromDB()" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition" title="Muat Ulang Data">
+                    <i class="fa-solid fa-arrows-rotate" id="refreshIcon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Indikator Loading -->
+        <div id="loadingIndicator" class="hidden py-16 text-center">
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent mb-3"></div>
+            <p class="text-slate-500 text-sm font-medium">Memuat data dari database...</p>
+        </div>
+
+        <!-- Grid Daftar File -->
+        <div id="fileGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Item file akan di-render di sini oleh JavaScript -->
+        </div>
+
+        <!-- State Kosong -->
+        <div id="emptyState" class="hidden bg-white rounded-2xl border border-slate-200 p-12 text-center my-4">
+            <div class="w-16 h-16 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-regular fa-folder-open"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">Tidak ada file ditemukan</h3>
+            <p class="text-slate-500 text-sm max-w-md mx-auto">Belum ada file yang tersedia atau pencarian Anda tidak cocok dengan data manapun.</p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-5 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-4">
+            <!-- Input Google Apps Script Web App URL (Hanya muncul di Mode Admin) -->
+            <div id="adminUrlSection" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    <i class="fa-solid fa-link mr-1 text-indigo-600"></i> Google Apps Script Web App URL
+                </label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="url" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/....../exec" 
+                        class="flex-grow px-3.5 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    <div class="flex gap-2">
+                        <button onclick="saveConfig()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition shadow-sm whitespace-nowrap">
+                            Simpan & Hubungkan
+                        </button>
+                        <button onclick="disconnectSheet()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs sm:text-sm font-medium rounded-xl transition whitespace-nowrap">
+                            Putuskan
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1.5">Kosongkan atau klik Putuskan jika ingin menggunakan mode simulasi (penyimpanan lokal browser).</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= MODAL LOGIN ADMIN ================= -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-user-lock text-indigo-600"></i>
+                    <span>Login Mode Admin</span>
+                </h3>
+                <button onclick="closeLoginModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 mb-4">Masukkan kata sandi administrator untuk menambah, mengubah, atau menghapus file.</p>
+            <form onsubmit="submitAdminLogin(event)">
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Password Admin</label>
+                    <input type="password" id="adminPasswordInput" required placeholder="Masukkan password..." 
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeLoginModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">Batal</button>
+                    <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-sm">Masuk</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL TAMBAH / EDIT FILE ================= -->
+    <div id="formModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100 my-8">
+            <div class="flex items-center justify-between mb-5">
+                <h3 id="formModalTitle" class="text-lg font-bold text-slate-900">Tambah File Baru</h3>
+                <button onclick="closeFormModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="fileForm" onsubmit="saveFile(event)" class="space-y-4">
+                <input type="hidden" id="fileIdInput">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Nama / Judul File <span class="text-red-500">*</span></label>
+                    <input type="text" id="fileTitleInput" required placeholder="Contoh: Modul Panduan Belajar React PDF" 
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Kategori</label>
+                        <select id="fileCategoryInput" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                            <option value="Konfigurasi">Konfigurasi</option>
+                            <option value="Aplikasi">Aplikasi / Software</option>
+                            <option value="Media">Media / Video / Audio</option>
+                            <option value="Firmware">Firmware</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Ukuran File</label>
+                        <input type="text" id="fileSizeInput" placeholder="Contoh: 15.4 MB" 
+                            class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Link Unduhan (URL) <span class="text-red-500">*</span></label>
+                    <input type="url" id="fileUrlInput" required placeholder="https://drive.google.com/file/d/..." 
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-[11px] text-slate-400 mt-1">Mendukung link Google Drive, MediaFire, Dropbox, atau direct link lainnya.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Deskripsi File</label>
+                    <textarea id="fileDescInput" rows="3" placeholder="Tuliskan keterangan singkat mengenai isi file ini..." 
+                        class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="pt-3 flex justify-end space-x-2 border-t border-slate-100">
+                    <button type="button" onclick="closeFormModal()" class="px-4 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">Batal</button>
+                    <button type="submit" id="saveFileBtn" class="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-sm flex items-center space-x-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Simpan Data</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MODAL KONFIRMASI HAPUS ================= -->
+    <div id="deleteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-slate-100 text-center">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mb-1">Hapus File Ini?</h3>
+            <p id="deleteFileName" class="text-xs text-slate-500 mb-5">Data yang dihapus tidak dapat dikembalikan.</p>
+            <div class="flex justify-center space-x-2">
+                <button onclick="closeDeleteModal()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition w-1/2">Batal</button>
+                <button id="confirmDeleteBtn" onclick="executeDelete()" class="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition w-1/2">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL KONFIGURASI GOOGLE SHEET ================= -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-100 my-8">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-2.5">
+                    <div class="bg-emerald-100 text-emerald-600 p-2 rounded-xl">
+                        <i class="fa-solid fa-table text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Pengaturan Database Google Sheet</h3>
+                        <p class="text-xs text-slate-500">Hubungkan aplikasi ini dengan Google Sheet Anda secara gratis</p>
+                    </div>
+                </div>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs sm:text-sm">
+                <!-- Langkah-langkah -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-slate-600 text-xs">
+                    <p class="font-bold text-slate-800">Cara Menghubungkan ke Google Sheet:</p>
+                    <ol class="list-decimal list-inside space-y-1">
+                        <li>Buka <strong>Google Sheets</strong> dan buat Spreadsheet baru.</li>
+                        <li>Klik menu <strong>Ekstensi (Extensions) &rarr; Apps Script</strong>.</li>
+                        <li>Hapus kode yang ada, lalu tempelkan kode dari file <strong>Code.gs</strong> dan simpan.</li>
+                        <li>Klik tombol <strong>Terapkan (Deploy) &rarr; Deployment baru (New deployment)</strong>.</li>
+                        <li>Pilih jenis <strong>Aplikasi Web (Web App)</strong>.</li>
+                        <li>Atur <em>Execute as</em>: <strong>Me</strong>, dan <em>Who has access</em>: <strong>Anyone (Siapa saja)</strong>, lalu klik <strong>Deploy</strong>.</li>
+                        <li>Salin <strong>Web App URL</strong> yang muncul ke kolom input paling bawah halaman saat berada di <strong>Mode Admin</strong>.</li>
+                    </ol>
+                </div>
+
+                <div class="pt-3 flex justify-end border-t border-slate-100">
+                    <button type="button" onclick="closeConfigModal()" class="px-4 py-2 text-xs sm:text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= TOAST NOTIFICATION ================= -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-3 text-sm">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+            <span id="toastMessage">Berhasil disimpan!</span>
+        </div>
+    </div>
+
+    <!-- ================= FLOATING WHATSAPP TEKNISI ================= -->
+    <a href="https://wa.me/628158855537" target="_blank" rel="noopener noreferrer" 
+        class="fixed bottom-6 right-6 z-40 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-2.5 group"
+        title="Hubungi WhatsApp Teknisi">
+        <i class="fa-brands fa-whatsapp text-2xl"></i>
+        <span class="text-xs sm:text-sm font-semibold pr-1">Kontak Teknisi</span>
+    </a>
+
+    <!-- ================= SCRIPT APLIKASI ================= -->
+    <script>
+        // --- STATE APLIKASI ---
+        let filesData = [];
+        let isAdmin = false;
+        let deleteTargetId = null;
+        const ADMIN_PASSWORD = "confile";
+        const STORAGE_KEY_FILES = "fileportal_local_data";
+        const STORAGE_KEY_SCRIPT_URL = "fileportal_script_url";
+
+        // Data Awal (Default) jika belum ada data sama sekali
+        const defaultFiles = [
+            {
+                id: "1710001",
+                title: "Template Laporan Keuangan Excel 2025",
+                category: "Dokumen",
+                size: "2.4 MB",
+                url: "https://docs.google.com/spreadsheets",
+                description: "Template pembukuan keuangan bulanan dan tahunan lengkap dengan rumus otomatis dan grafik."
+            },
+            {
+                id: "1710002",
+                title: "Installer Aplikasi Utility v2.1 (Windows)",
+                category: "Aplikasi",
+                size: "48.0 MB",
+                url: "https://drive.google.com/file/d/1B2M2Y8AsgTpgAmY7PhCfg/view?usp=sharing",
+                description: "Aplikasi pendukung produktivitas kerja untuk sistem operasi Windows 10 dan Windows 11 64-bit."
+            },
+            {
+                id: "1710003",
+                title: "Paket Aset Desain UI/UX & Ikon Vektor",
+                category: "Arsip",
+                size: "125 MB",
+                url: "https://drive.google.com/drive/my-drive",
+                description: "Kumpulan aset desain grafis berformat SVG, PNG, dan Figma siap pakai untuk proyek web dan mobile."
+            }
+        ];
+
+        // --- INISIALISASI SAAT HALAMAN DIMUAT ---
+        window.onload = function() {
+            const savedUrl = localStorage.getItem(STORAGE_KEY_SCRIPT_URL) || DEFAULT_SCRIPT_URL;
+            if (savedUrl) localStorage.setItem(STORAGE_KEY_SCRIPT_URL, savedUrl);
+            const urlInput = document.getElementById("scriptUrlInput");
+            if (urlInput) urlInput.value = savedUrl;
+            updateDbStatusUI();
+            fetchFilesFromDB();
+        };
+
+        // --- UPDATE INDIKATOR STATUS DATABASE ---
+        function updateDbStatusUI() {
+            const scriptUrl = localStorage.getItem(STORAGE_KEY_SCRIPT_URL);
+            const dot = document.getElementById("dbStatusDot");
+            const text = document.getElementById("dbStatusText");
+
+            if (scriptUrl && scriptUrl.trim() !== "") {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                text.textContent = "Terhubung ke Google Sheet";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500";
+                text.textContent = "Mode Simulasi (Lokal)";
+            }
+        }
+
+        // --- MENGAMBIL DATA DARI GOOGLE SHEET ATAU LOCALSTORAGE ---
+        async function fetchFilesFromDB() {
+            const scriptUrl = localStorage.getItem(STORAGE_KEY_SCRIPT_URL);
+            const loading = document.getElementById("loadingIndicator");
+            const grid = document.getElementById("fileGrid");
+            const refreshIcon = document.getElementById("refreshIcon");
+
+            refreshIcon.classList.add("fa-spin");
+
+            if (scriptUrl && scriptUrl.trim() !== "") {
+                loading.classList.remove("hidden");
+                grid.classList.add("hidden");
+
+                try {
+                    const response = await fetch(scriptUrl + "?action=read&t=" + new Date().getTime());
+                    const result = await response.json();
+                    if (result && Array.isArray(result.data)) {
+                        filesData = result.data;
+                        localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(filesData));
+                    } else {
+                        showToast("Format data Sheet tidak sesuai, memuat cadangan lokal.", "warning");
+                        loadLocalData();
+                    }
+                } catch (error) {
+                    console.error("Gagal mengambil dari Google Sheet:", error);
+                    showToast("Gagal terhubung ke Google Sheet. Menampilkan data lokal.", "error");
+                    loadLocalData();
+                } finally {
+                    loading.classList.add("hidden");
+                    grid.classList.remove("hidden");
+                    refreshIcon.classList.remove("fa-spin");
+                    renderFiles();
+                }
+            } else {
+                loadLocalData();
+                setTimeout(() => refreshIcon.classList.remove("fa-spin"), 300);
+                renderFiles();
+            }
+        }
+
+        function loadLocalData() {
+            const saved = localStorage.getItem(STORAGE_KEY_FILES);
+            if (saved) {
+                try {
+                    filesData = JSON.parse(saved);
+                } catch (e) {
+                    filesData = [...defaultFiles];
+                }
+            } else {
+                filesData = [...defaultFiles];
+                localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(filesData));
+            }
+        }
+
+        // --- KONVERSI LINK GOOGLE DRIVE AGAR BISA LANGSUNG UNDUH ---
+        function getDirectDownloadUrl(url) {
+            if (!url) return "#";
+            const driveRegex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/;
+            const match = url.match(driveRegex);
+            if (match && match[1]) {
+                return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+            }
+            return url;
+        }
+
+        // --- MENDAPATKAN IKON & WARNA BERDASARKAN KATEGORI ---
+        function getCategoryBadge(category) {
+            switch (category) {
+                case "Dokumen":
+                    return { icon: "fa-file-lines", bg: "bg-blue-50 text-blue-600 border-blue-200", iconBg: "bg-blue-100 text-blue-600" };
+                case "Aplikasi":
+                    return { icon: "fa-cubes", bg: "bg-purple-50 text-purple-600 border-purple-200", iconBg: "bg-purple-100 text-purple-600" };
+                case "Media":
+                    return { icon: "fa-circle-play", bg: "bg-rose-50 text-rose-600 border-rose-200", iconBg: "bg-rose-100 text-rose-600" };
+                case "Arsip":
+                    return { icon: "fa-file-zipper", bg: "bg-amber-50 text-amber-700 border-amber-200", iconBg: "bg-amber-100 text-amber-600" };
+                default:
+                    return { icon: "fa-file", bg: "bg-slate-100 text-slate-600 border-slate-200", iconBg: "bg-slate-200 text-slate-600" };
+            }
+        }
+
+        // --- RENDER DAFTAR FILE KE LAYAR ---
+        function renderFiles() {
+            const grid = document.getElementById("fileGrid");
+            const emptyState = document.getElementById("emptyState");
+            const searchQuery = document.getElementById("searchInput").value.toLowerCase().trim();
+            const selectedCategory = document.getElementById("categoryFilter").value;
+
+            const filtered = filesData.filter(item => {
+                const title = String(item.title || "").toLowerCase();
+                const desc = String(item.description || "").toLowerCase();
+                const cat = String(item.category || "Lainnya");
+
+                const matchSearch = title.includes(searchQuery) || desc.includes(searchQuery);
+                const matchCategory = selectedCategory === "Semua" || cat === selectedCategory;
+                return matchSearch && matchCategory;
+            });
+
+            grid.innerHTML = "";
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove("hidden");
+                return;
+            } else {
+                emptyState.classList.add("hidden");
+            }
+
+            filtered.forEach(item => {
+                const badge = getCategoryBadge(item.category);
+                const directUrl = getDirectDownloadUrl(item.url);
+
+                const card = document.createElement("div");
+                card.className = "bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between";
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div class="w-11 h-11 rounded-xl ${badge.iconBg} flex items-center justify-center text-lg shrink-0">
+                                <i class="fa-solid ${badge.icon}"></i>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                                <span class="text-xs font-medium px-2.5 py-1 rounded-lg border ${badge.bg}">
+                                    ${escapeHtml(item.category || 'Lainnya')}
+                                </span>
+                                ${item.size ? `<span class="text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">${escapeHtml(item.size)}</span>` : ''}
+                            </div>
+                        </div>
+
+                        <h3 class="font-bold text-slate-900 text-base mb-1.5 line-clamp-2">${escapeHtml(item.title)}</h3>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-5 line-clamp-3">${escapeHtml(item.description || 'Tidak ada deskripsi tambahan.')}</p>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                        <!-- Tombol Aksi User (Unduh & Salin Link) -->
+                        <div class="flex items-center gap-2">
+                            <a href="${escapeHtml(directUrl)}" target="_blank" rel="noopener noreferrer" 
+                                class="flex-grow bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center space-x-2 shadow-sm">
+                                <i class="fa-solid fa-download"></i>
+                                <span>Unduh File</span>
+                            </a>
+                            <button onclick="copyLink('${escapeHtml(item.url)}')" title="Salin Tautan Asli"
+                                class="p-2.5 text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 rounded-xl transition">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                            <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="Buka Tautan di Tab Baru"
+                                class="p-2.5 text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 rounded-xl transition">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            </a>
+                        </div>
+
+                        <!-- Tombol Aksi Admin (Edit & Hapus) -->
+                        ${isAdmin ? `
+                        <div class="flex items-center gap-2 pt-2 border-t border-dashed border-slate-200 mt-1">
+                            <button onclick="openFormModal('${escapeHtml(item.id)}')" class="w-1/2 py-1.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-1">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                <span>Edit</span>
+                            </button>
+                            <button onclick="confirmDelete('${escapeHtml(item.id)}')" class="w-1/2 py-1.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition flex items-center justify-center space-x-1">
+                                <i class="fa-solid fa-trash"></i>
+                                <span>Hapus</span>
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // --- FUNGSI KEAMANAN TEKS HTML ---
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // --- SALIN LINK KE CLIPBOARD ---
+        function copyLink(url) {
+            const tempInput = document.createElement("textarea");
+            tempInput.value = url;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            showToast("Link unduhan berhasil disalin!", "success");
+        }
+
+        // --- MANAJEMEN MODE ADMIN ---
+        function handleAdminClick() {
+            if (isAdmin) {
+                logoutAdmin();
+            } else {
+                document.getElementById("adminPasswordInput").value = "";
+                document.getElementById("loginModal").classList.remove("hidden");
+                setTimeout(() => document.getElementById("adminPasswordInput").focus(), 100);
+            }
+        }
+
+        function closeLoginModal() {
+            document.getElementById("loginModal").classList.add("hidden");
+        }
+
+        function submitAdminLogin(e) {
+            e.preventDefault();
+            const pass = document.getElementById("adminPasswordInput").value;
+            if (pass === ADMIN_PASSWORD) {
+                isAdmin = true;
+                closeLoginModal();
+                updateAdminUI();
+                showToast("Mode Admin diaktifkan", "success");
+            } else {
+                showToast("Password Admin salah!", "error");
+            }
+        }
+
+        function logoutAdmin() {
+            isAdmin = false;
+            updateAdminUI();
+            showToast("Keluar dari Mode Admin", "info");
+        }
+
+        function updateAdminUI() {
+            const banner = document.getElementById("adminBanner");
+            const btn = document.getElementById("adminToggleBtn");
+            const icon = document.getElementById("adminIcon");
+            const text = document.getElementById("adminBtnText");
+            const adminUrlSection = document.getElementById("adminUrlSection");
+
+            if (isAdmin) {
+                banner.classList.remove("hidden");
+                if (adminUrlSection) adminUrlSection.classList.remove("hidden");
+                btn.className = "px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition flex items-center space-x-1.5 shadow-sm";
+                icon.className = "fa-solid fa-unlock text-indigo-200";
+                text.textContent = "Admin Aktif";
+            } else {
+                banner.classList.add("hidden");
+                if (adminUrlSection) adminUrlSection.classList.add("hidden");
+                btn.className = "px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center space-x-1.5";
+                icon.className = "fa-solid fa-lock text-slate-500";
+                text.textContent = "Mode Admin";
+            }
+            renderFiles();
+        }
+
+        // --- TAMBAH & EDIT FILE (CRUD) ---
+        function openFormModal(editId = null) {
+            const modal = document.getElementById("formModal");
+            const titleEl = document.getElementById("formModalTitle");
+
+            if (editId) {
+                const item = filesData.find(f => String(f.id) === String(editId));
+                if (!item) return;
+                titleEl.textContent = "Edit Data File";
+                document.getElementById("fileIdInput").value = item.id;
+                document.getElementById("fileTitleInput").value = item.title || "";
+                document.getElementById("fileCategoryInput").value = item.category || "Lainnya";
+                document.getElementById("fileSizeInput").value = item.size || "";
+                document.getElementById("fileUrlInput").value = item.url || "";
+                document.getElementById("fileDescInput").value = item.description || "";
+            } else {
+                titleEl.textContent = "Tambah File Baru";
+                document.getElementById("fileForm").reset();
+                document.getElementById("fileIdInput").value = "";
+            }
+
+            modal.classList.remove("hidden");
+        }
+
+        function closeFormModal() {
+            document.getElementById("formModal").classList.add("hidden");
+        }
+
+        async function saveFile(e) {
+            e.preventDefault();
+            const idInput = document.getElementById("fileIdInput").value;
+            const isEdit = idInput !== "";
+
+            const fileObj = {
+                id: isEdit ? idInput : String(Date.now()),
+                title: document.getElementById("fileTitleInput").value.trim(),
+                category: document.getElementById("fileCategoryInput").value,
+                size: document.getElementById("fileSizeInput").value.trim() || "-",
+                url: document.getElementById("fileUrlInput").value.trim(),
+                description: document.getElementById("fileDescInput").value.trim()
+            };
+
+            const saveBtn = document.getElementById("saveFileBtn");
+            const originalText = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan...</span>`;
+
+            if (isEdit) {
+                const idx = filesData.findIndex(f => String(f.id) === String(idInput));
+                if (idx !== -1) filesData[idx] = fileObj;
+            } else {
+                filesData.unshift(fileObj);
+            }
+            localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(filesData));
+
+            const scriptUrl = localStorage.getItem(STORAGE_KEY_SCRIPT_URL);
+            if (scriptUrl && scriptUrl.trim() !== "") {
+                try {
+                    await fetch(scriptUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({
+                            action: isEdit ? "edit" : "add",
+                            data: fileObj
+                        })
+                    });
+                    showToast(isEdit ? "Perubahan disimpan ke Google Sheet!" : "File ditambahkan ke Google Sheet!", "success");
+                } catch (err) {
+                    console.error(err);
+                    showToast("Tersimpan di lokal, namun gagal sinkron ke Google Sheet.", "warning");
+                }
+            } else {
+                showToast(isEdit ? "Data file berhasil diperbarui!" : "File baru berhasil ditambahkan!", "success");
+            }
+
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+            closeFormModal();
+            renderFiles();
+        }
+
+        // --- HAPUS FILE ---
+        function confirmDelete(id) {
+            const item = filesData.find(f => String(f.id) === String(id));
+            if (!item) return;
+            deleteTargetId = id;
+            document.getElementById("deleteFileName").textContent = `"${item.title}" akan dihapus dari daftar.`;
+            document.getElementById("deleteModal").classList.remove("hidden");
+        }
+
+        function closeDeleteModal() {
+            deleteTargetId = null;
+            document.getElementById("deleteModal").classList.add("hidden");
+        }
+
+        async function executeDelete() {
+            if (!deleteTargetId) return;
+            const idToDelete = deleteTargetId;
+            const btn = document.getElementById("confirmDeleteBtn");
+            btn.disabled = true;
+            btn.textContent = "Menghapus...";
+
+            filesData = filesData.filter(f => String(f.id) !== String(idToDelete));
+            localStorage.setItem(STORAGE_KEY_FILES, JSON.stringify(filesData));
+
+            const scriptUrl = localStorage.getItem(STORAGE_KEY_SCRIPT_URL);
+            if (scriptUrl && scriptUrl.trim() !== "") {
+                try {
+                    await fetch(scriptUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify({
+                            action: "delete",
+                            id: idToDelete
+                        })
+                    });
+                    showToast("File dihapus dari Google Sheet!", "success");
+                } catch (err) {
+                    console.error(err);
+                    showToast("File dihapus secara lokal.", "warning");
+                }
+            } else {
+                showToast("File berhasil dihapus!", "success");
+            }
+
+            btn.disabled = false;
+            btn.textContent = "Ya, Hapus";
+            closeDeleteModal();
+            renderFiles();
+        }
+
+        // --- KONFIGURASI GOOGLE SHEET ---
+        function openConfigModal() {
+            // Popup Pengaturan Database Google Sheet dinonaktifkan
+        }
+
+        function closeConfigModal() {
+            document.getElementById("configModal").classList.add("hidden");
+        }
+
+        function saveConfig() {
+            const url = document.getElementById("scriptUrlInput").value.trim();
+            localStorage.setItem(STORAGE_KEY_SCRIPT_URL, url);
+            updateDbStatusUI();
+            closeConfigModal();
+            if (url) {
+                showToast("URL Google Sheet disimpan! Memuat data...", "success");
+                fetchFilesFromDB();
+            } else {
+                showToast("Beralih ke Mode Simulasi Lokal", "info");
+                fetchFilesFromDB();
+            }
+        }
+
+        function disconnectSheet() {
+            localStorage.removeItem(STORAGE_KEY_SCRIPT_URL);
+            document.getElementById("scriptUrlInput").value = "";
+            updateDbStatusUI();
+            closeConfigModal();
+            showToast("Koneksi Google Sheet diputuskan.", "info");
+            fetchFilesFromDB();
+        }
+
+        // --- TOAST NOTIFICATION ---
+        let toastTimeout;
+        function showToast(message, type = "success") {
+            const toast = document.getElementById("toast");
+            const msgEl = document.getElementById("toastMessage");
+            const iconEl = document.getElementById("toastIcon");
+
+            msgEl.textContent = message;
+
+            if (type === "success") {
+                iconEl.className = "fa-solid fa-circle-check text-emerald-400";
+            } else if (type === "error") {
+                iconEl.className = "fa-solid fa-circle-exclamation text-rose-400";
+            } else if (type === "warning") {
+                iconEl.className = "fa-solid fa-triangle-exclamation text-amber-400";
+            } else {
+                iconEl.className = "fa-solid fa-circle-info text-sky-400";
+            }
+
+            toast.classList.remove("translate-y-20", "opacity-0");
+
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add("translate-y-20", "opacity-0");
+            }, 3200);
+        }
+
+        // =====================================================================
+        // TEMPAT MENGISI LINK WEB APP GOOGLE APPS SCRIPT (ISI DI DALAM TANDA KUTIP)
+        // =====================================================================
+        const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzYCIgDuBzJlLeCd3XEkvUejAtfJu7VmKbqJftOytGbBoAaipdbzNUEyijRZCX0P8Cd/exec";
+    </script>
+</body>
+</html>
